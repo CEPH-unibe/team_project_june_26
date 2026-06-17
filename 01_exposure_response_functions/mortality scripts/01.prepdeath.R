@@ -5,11 +5,11 @@
 
 
 #Load libraries and functions
-source("~/Library/CloudStorage/OneDrive-UniversitaetBern/my projects/team_project/team_project_june_26/01_exposure_response_functions/mortality/00.pkg.R")
+source('/Users/jv24t611/Library/CloudStorage/OneDrive-UniversitaetBern/my projects/team_project/team_project_june_26/01_exposure_response_functions/mortality scripts/00.pkg.R')
 
 #Define directories
 deathdir <- "/Volumes/FS/_ISPM/CCH/01Data/Mortality_CH/"
-savedir <- "~/Library/CloudStorage/OneDrive-UniversitaetBern/my projects/team_project/team_project_june_26/01_exposure_response_functions/mortality/"
+savedir <- "~/Library/CloudStorage/OneDrive-UniversitaetBern/my projects/team_project/team_project_june_26/01_exposure_response_functions/"
 
 #Load mortality data
 death1 <- fread(paste0(deathdir,"/mortality_CH_1969-2018/mort_6918.csv"))
@@ -67,7 +67,30 @@ setorder(death3, muncode, date)
 ###APPEND ALL PERIODS TO SINGLE PERIOD: 1969-2024
 death <- bind_rows(death1,death2,death3)
 
+
+################################################
+###FILL UP DAYS WITH ZERO MORTALITY COUNTS
+# Define the full date range
+fulldate <- seq(min(death$date), max(death$date), by = "day")
+
+# Get all unique combinations of municipality
+groups <- unique(death[, .(muncode)])
+
+# Create all combinations of date x groups
+fullgrid <- CJ(date = fulldate, muncode=groups$muncode)
+
+# Join with your original data
+deathfull <- merge(fullgrid, death[,c("date","muncode","dcount")],
+                  by = c("date", "muncode"),
+                  all.x = TRUE)
+
+# Replace missing counts with 0
+deathfull[is.na(dcount), dcount := 0]
+
+# Optional: order the result
+setorder(deathfull, muncode, date)
+
 ################################################
 ###SAVE MORTALITY DATA
-saveRDS(death, paste0(savedir,"death6924.RDS"))
+saveRDS(deathfull, paste0(savedir,"death6924.RDS"))
 
