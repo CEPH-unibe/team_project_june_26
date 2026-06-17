@@ -55,7 +55,7 @@ dlist<- split(lookup$`BFS Gde-nummer`, lookup$`Bezirks-nummer`)
 
 firststage<-list()
 cp_list <- list()
-coefall <- matrix(NA, nrow=length(dlist), ncol=9)
+coefall <- matrix(NA, nrow=length(dlist), ncol=3)
 vcovall <- list()
 
 
@@ -120,7 +120,7 @@ modfull <- gnm(dcount ~ cbtmean ,
 
 mmti<-findmin(cbtmean, model=modfull, from=quantile(datafull$tmean, 0.25), to=quantile(datafull$tmean, 0.90)) #check the function
 
-cp_list[[i]] <- crosspred(cbtmean, modfull, cen=mmti)
+cp_list[[i]] <- crossreduce(cbtmean, modfull, cen=mmti)
 
 coefall[i,] <-  cp_list[[i]]$coefficients
 vcovall[[i]] <-  cp_list[[i]]$vcov
@@ -140,9 +140,9 @@ names(vcovall) <- names(dlist)
 #Store coefficients and variance-covariance matrices
 firststage <-list(coefall=coefall, vcovall=vcovall)
 
-pdf(paste0("01_exposure_response_functions/firststageplots_bydistricts.pdf"))
+pdf(paste0("01_exposure_response_functions/firststageplots_bydistricts_3days.pdf"))
 for(x in 1:length(cp_list)){
-  plot(cp_list[[x]], "overall")
+  plot(cp_list[[x]])
 }
 dev.off()
 
@@ -181,7 +181,7 @@ vcovmeta <- vcovall
 mvall <- mixmeta(coefmeta~rangetmean+avgtmean,vcovmeta, metavarALL,
                  control=list(showiter=T), random=~1|`Bezirks-nummer`, method="reml")
 
-# blup(mvall, se=T, pi=T)
+blup <- blup(mvall, vcov=T)
 #
 # # BLUPS AT district LEVEL FROM TWO-LEVEL MODEL
 # districtblup <- exp(blup(mvall))
@@ -191,7 +191,7 @@ mvall <- mixmeta(coefmeta~rangetmean+avgtmean,vcovmeta, metavarALL,
 
 
 
-saveRDS(mvall, "01_exposure_response_functions/secondstage.rds")
+saveRDS(blup, "01_exposure_response_functions/secondstage.rds")
 
 
 
