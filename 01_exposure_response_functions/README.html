@@ -354,10 +354,177 @@ display: none;
 
 <div id="documentation-of-the-exposure-response-functions" class="section level1">
 <h1>Documentation of the exposure response functions</h1>
-<div id="design-and-data" class="section level2">
-<h2>Design and data</h2>
-<p>We are conducting summer-only small-area analyses at the district
-level. We use Mortality data from 2014 to</p>
+<div id="study-design-data-scope" class="section level2">
+<h2>1. Study Design &amp; Data Scope</h2>
+<p>This analysis employs a <strong>two-stage time series design</strong>
+to estimate the non-linear relationship between summer temperature and
+mortality at the municipality ßlevel, aggregated to districts. The study
+period covers June through September from 2014 to 2024.</p>
+<div id="spatial-units-exclusions" class="section level3">
+<h3>Spatial Units &amp; exclusions</h3>
+<ul>
+<li><strong>Primary Unit:</strong> Swiss municipalities
+(<em>Gemeinden</em>).</li>
+<li><strong>Aggregation Level:</strong> Districts (<em>Bezirke</em>),
+nested within Cantons (<em>Kantone</em>).</li>
+<li><strong>Data Harmonization:</strong>
+<ul>
+<li>Mortality data sourced from federal statistical office.</li>
+<li>Temperature data: Population-weighted daily mean temperatures
+derived from national models (meteoSwiss).</li>
+<li><strong>Exclusion Criteria:</strong> 141 communes were excluded
+because their boundaries did not align with the <strong>2026
+administrative standards</strong>
+(<code>Gemeindestand_lookup_districts.csv</code>). Analyses proceed only
+on harmonized units matching the current district definitions.</li>
+</ul></li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="step-by-step-analytical-workflow" class="section level2">
+<h2>2. Step-by-Step Analytical Workflow</h2>
+<div id="stage-1-community-level-modeling-small-area-estimation" class="section level3">
+<h3>Stage 1: community-level modeling (small area estimation)</h3>
+<p>The first stage estimates exposure-response curves independently for
+each valid municipality using a time-stratified case-crossover approach
+adapted for small areas.</p>
+<ol style="list-style-type: decimal">
+<li><strong>Data preparation:</strong>
+<ul>
+<li>Merge mortality counts and temperature data by municipality code
+(<code>BFS Gde-nummer</code>) and date.</li>
+<li>Filter for summer months (June–September).</li>
+<li>Generate temporal covariates: Day of Year (<code>doy</code>), Day of
+Week (<code>dow</code>), and Month.</li>
+</ul></li>
+<li><strong>Cross-basis Cconstruction:</strong>
+<ul>
+<li><strong>Temperature variable:</strong> Modeled using Natural Splines
+(<code>ns</code>) with internal knots at the <strong>50th and 90th
+percentiles</strong> of local temperature distributions. Boundary knots
+set to the observed range.</li>
+<li><strong>Lag structure:</strong> A lag dimension of <strong>3
+days</strong> is applied, modeled with “integer” specification.</li>
+<li><strong>grouping:</strong> Data is grouped by
+<code>municipality-year</code> combinations to allow for over-dispersion
+correction within strata.</li>
+</ul></li>
+<li><strong>Model fitting (GNM):</strong>
+<ul>
+<li>A Generalized Non-linear Model (<code>gnm</code> with
+<code>quasipoisson</code> family) is fitted: <span class="math display">\[ \log(E[Y_{it}]) = \beta_0 + CB(T_{it}, L) +
+S(DOW_t) \]</span> Where <span class="math inline">\(CB\)</span> is the
+cross-basis term for temperature and lag, and seasonal/daily patterns
+are controlled via stratification (eliminating empty strata to prevent
+bias).</li>
+<li><strong>Minimum Mortality Temperature (MMT):</strong> Identified for
+each commune using the <code>findmin</code> function, scanning between
+the 25th and 90th percentiles of local temperature.</li>
+</ul></li>
+<li><strong>Stage 1 output extraction:</strong>
+<ul>
+<li>The <code>crossreduce</code> function extracts the coefficient
+matrix (<span class="math inline">\(\hat{\beta}\)</span>) and
+variance-covariance matrices (<span class="math inline">\(V\)</span>)
+for the reduced cross-ba</li>
+</ul></li>
+</ol>
+</div>
+<div id="stage-2-mixed-effects-meta-regression-blups" class="section level3">
+<h3>Stage 2: mixed-effects meta-regression &amp; BLUPs</h3>
+<p>The second stage pools community-level estimates while accounting for
+spatial hierarchy and heterogeneity.</p>
+<ol style="list-style-type: decimal">
+<li><strong>Meta-covariates generation:</strong>
+<ul>
+<li><strong>District characteristics:</strong> Mean temperature
+(<code>avgtmean</code>) and temperature range (<code>rangetmean</code>)
+calculated for each district during the summer period.</li>
+<li><strong>Covariate alignment:</strong> Merged with lookup tables to
+ensure Canton/District hierarchy is preserved.</li>
+</ul></li>
+<li><strong>Two-level random effects model:</strong>
+<ul>
+<li>A mixed-meta regression (<code>mixmeta</code> package, REML method)
+is applied: <span class="math display">\[ \hat{\beta}_{jk} =
+X_{jk}\gamma + u_{j[k]} + \epsilon_{jk} \]</span>
+<ul>
+<li><strong>Fixed effects:</strong> Explained by district-level
+temperature range and mean.</li>
+<li><strong>Random effects:</strong> Nested structure defined as
+<code>~1 | Kanton / Bezirks-nummer</code> to account for correlation
+among districts within cantons and among communes within districts.</li>
+</ul></li>
+</ul></li>
+<li><strong>Prediction &amp; aggregation:</strong>
+<ul>
+<li><strong>BLUPs (Best Linear Unbiased Predictors):</strong> Extracted
+for every district to obtain stable, shrunken estimates that borrow
+strength across neighboring units.</li>
+<li><strong>National/regional curves:</strong> Generated by predicting
+coefficients at the mean national temperature characteristics, allowing
+for a smooth pooled exposure-response curve.</li>
+</ul></li>
+</ol>
+<hr />
+</div>
+</div>
+<div id="statistical-software-packages" class="section level2">
+<h2>3. Statistical software &amp; packages</h2>
+<ul>
+<li><strong>Core engine:</strong> R (v4.x+)</li>
+<li><strong>Spatial &amp; raster handling:</strong> <code>sf</code>,
+<code>terra</code>, <code>exactextractr</code> (for population-weighted
+extraction).</li>
+<li><strong>Epidemiological modeling:</strong> <code>dlnm</code>
+(Distributed Lag Non-linear Models), <code>gnm</code> (Generalized
+Nonlinear Models).</li>
+<li><strong>Meta-analysis:</strong> <code>mixmeta</code> (Multivariate
+Meta-Analysis).</li>
+<li><strong>Data management:</strong> <code>data.table</code>,
+<code>dplyr</code>, <code>tidyr</code>.</li>
+<li><strong>Visualization:</strong> <code>ggplot2</code>,
+<code>patchwork</code>.</li>
+</ul>
+<hr />
+</div>
+<div id="key-outputs" class="section level2">
+<h2>4. Key outputs</h2>
+<ol style="list-style-type: decimal">
+<li><strong>Stage 1 plots:</strong> Individual exposure-response curves
+for all included districts (visualizing local variability).</li>
+<li><strong>BLUP district maps/curves:</strong> District-specific risk
+estimates (RED lines in output PDFs) incorporating hierarchical
+smoothing.</li>
+<li><strong>Pooled national curve:</strong> The summary
+exposure-response function representing the average risk across
+Switzerland during summer.</li>
+<li><strong>Sensitivity metrics:</strong> Identification of
+district-specific Minimum Mortality Temperatures (MMT) ranging typically
+between the 50th–90th percentiles of local summer heat.</li>
+</ol>
+<hr />
+</div>
+<div id="limitations-future-improvements" class="section level2">
+<h2>5. Limitations &amp; future improvements</h2>
+<ul>
+<li><strong>Temporal resolution:</strong> Daily mortality counts assume
+no significant misclassification of death dates.</li>
+<li><strong>Lag selection:</strong> A fixed 5-day lag assumes
+acute/sub-acute effects; longer lags were not tested in this specific
+run.</li>
+<li><strong>Boundary changes:</strong> The exclusion of 141 communes
+ensures administrative consistency with 2026 standards but may introduce
+selection bias if excluded areas have distinct climate-health
+dynamics.</li>
+<li><strong>Temporal biases:</strong> Sensitivity analyses should be
+performed excluding the covid-19 affected summers to verify robustness
+of exposure response curves</li>
+<li><strong>Error BLUPs:</strong> Error to be spotted in the variance
+covariance matrices of the blups (confidence intervals have a strange
+shape).</li>
+</ul>
 </div>
 </div>
 

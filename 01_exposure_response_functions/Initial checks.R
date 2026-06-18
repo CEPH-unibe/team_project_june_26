@@ -1,7 +1,10 @@
-# Prepare lookup table municipality to districts and verify shapefiles
+@ -1,47 +0,0 @@
+  # add temperature data to mortality
 
-# libraries
-library(data.table)
+  # First, prepare lookup table municipality to districts and verify shapefiles
+
+  # libraries
+  library(data.table)
 library(dplyr)
 library(sf)
 
@@ -36,3 +39,10 @@ summary(match)
 match2 <- merge(mort.14, lookup, by.x="muncode", by.y="BFS Gde-nummer", all=T)
 summary(match2)
 View(match2[is.na(`Bezirks-nummer`)])
+
+temp <- fread("/Volumes/FS/_ISPM/CCH/AnnualTeamProject2026/historical_temp_popw_2000_2024.csv")
+
+# mortality data is already pop averaged at the district level
+
+head(mort)
+head(temp)
