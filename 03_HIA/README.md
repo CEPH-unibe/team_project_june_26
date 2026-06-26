@@ -1,4 +1,4 @@
-# Heat–Health Warning Levels
+# Heat Impact Assessment with warning levels
 
 Annual Team Project 2026
 
